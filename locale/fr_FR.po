@@ -1,0 +1,203 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: TubePress.NET\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2010-04-15 20:58+0100\n"
+"PO-Revision-Date: \n"
+"Last-Translator: Mario Mansour\n"
+"Language-Team:  <tubepress.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-KeywordsList: __;_e;__ngettext:1,2;__ngettext_noop:1,2;_c\n"
+"X-Poedit-Basepath: M:\\xampp\\htdocs\\neo\\wordpress\\wp-content\\plugins\\TUBEPRESS_SVN\\trunk\n"
+"X-Poedit-SearchPath-0: M:\\xampp\\htdocs\\neo\\wordpress\\wp-content\\plugins\\TUBEPRESS_SVN\\trunk\n"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:96
+msgid "<h2>Imported Video List</h2>"
+msgstr "<h2>Liste des vidéos importés</h2>"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:118
+msgid "No Videos Found"
+msgstr "Aucune Vidéo Trouver"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:121
+msgid "Videos already imported"
+msgstr "Videos Deja Importées"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:124
+msgid "Videos imported successfully"
+msgstr "Videos Importées"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:261
+msgid "TubePress: Import By ID"
+msgstr "TubePress: Importer par ID"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:273
+msgid "Import This Video &raquo;"
+msgstr "Importer Cette Video &raquo;"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:298
+msgid "TubePress: Import Featured Videos"
+msgstr "TubePress: Importer Videos Speciales"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:303
+msgid "Select Feed Type"
+msgstr "Séléctioner le Type"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:328
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:375
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:424
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:477
+msgid "Max Results"
+msgstr "Max Resultats"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:330
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:377
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:426
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:479
+msgid "Indicate maximum number of entries to import"
+msgstr "Indiquer le maximum de vidéos à importer"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:333
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:380
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:429
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:482
+msgid "Start Index"
+msgstr "Index de Début"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:335
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:382
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:431
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:484
+msgid "Indicate which entry to start listing results"
+msgstr "Indiquer le début de la liste des résultats"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:341
+msgid "Import Featured Videos &raquo;"
+msgstr "Importer Vidéos Speciales &raquo;"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:365
+msgid "TubePress: Import Favorite Videos"
+msgstr "TubePress: Importer Vidéos Favories"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:370
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:419
+msgid "Username"
+msgstr "Nom de compte"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:372
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:421
+msgid "get one!"
+msgstr "Ouvrir un compte!"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:387
+msgid "Import My Favorites &raquo;"
+msgstr "Importer Mes Favories &raquo;"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:414
+msgid "TubePress: Import My Videos"
+msgstr "TubePress: Importer Mes Vidéos"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:434
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:472
+msgid "Tag"
+msgstr "Etiquette"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:436
+msgid "Filter the results by a tag keyword"
+msgstr "Filtrer les résultats par etiquette"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:442
+msgid "Import My Videos &raquo;"
+msgstr "Importer Mes Vidéos &raquo;"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:467
+msgid "TubePress: Import By Tag"
+msgstr "TubePress: Importer par Etiquette"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:474
+msgid "Enter your keywords <strong>e.g.</strong> <em> funny videos </em>"
+msgstr "Indiquer les mots clés <strong>par ex.</strong> <em> video humour </em>"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:490
+msgid "Import Videos &raquo;"
+msgstr "Importer Vidéos &raquo;"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:529
+msgid "Options Saved!"
+msgstr "Options Sauvegarder!"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:574
+msgid "TubePress Setup"
+msgstr "TubePress Setup"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:579
+msgid "Video Player Width"
+msgstr "Largeur du lecteur vidéo"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:585
+msgid "Video Player Height"
+msgstr "Hauteur du lecteur vidéo"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:589
+msgid "Autoplay Videos ?"
+msgstr "Mode autoplay"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:593
+msgid "Hide Related Videos ?"
+msgstr "Cacher les vidéos associées"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:597
+msgid "Show Border?"
+msgstr "Afficher la bordure?"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:601
+msgid "Customize player color"
+msgstr "Personaliser la couleur du lecteur"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:619
+msgid "Use WP JW Player"
+msgstr "Utiliser WP JW Player"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:621
+msgid "WP JW Player Plugin is required. <a href=\"http://downloads.wordpress.org/plugin/wp-jw-player.zip\">Download it here</a>"
+msgstr "WP JW Player Plugin est requis. <a href=\"http://downloads.wordpress.org/plugin/wp-jw-player.zip\">Télécharger ici</a>"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:627
+msgid "Customize the look of your imported videos with the tubepress template. You can use HTML code + TubePress Template Tags (Check below)"
+msgstr "Personaliser l'affichage des vidéos importées avec le modèle de tubepress. Vous pouvez utiliser le code HTML + TubePress Template Tags (Regarder ci-dessous)"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:631
+#, fuzzy
+msgid "Remove Duplication"
+msgstr "Verifier la duplication"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:635
+msgid "Put each video in"
+msgstr "Afficher chaque vidéo dans un"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:644
+msgid "Add Custom Fields"
+msgstr "Ajouter Custom Fields"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:649
+msgid "Content Template"
+msgstr "Modèle du Contenu"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:653
+msgid "Excerpt Template"
+msgstr "Modèle de l'extrait"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:657
+msgid "TubePress Template Tags"
+msgstr "TubePress Template Tags"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:658
+msgid "Use these tags to make your own content and excerpt templates. Check wordpress templates to know the difference"
+msgstr "Utiliser ces codes pour créer vos modèles pour le contenu et l'extrait. Verifier les modèles de wordpress pour plus de renseignement"
+
+#: M:\xampp\htdocs\neo\wordpress\wp-content\plugins\TUBEPRESS_SVN\trunk/tubepress.php:673
+msgid "Save Options &raquo;"
+msgstr "Sauvegarder Options &raquo;"
+
