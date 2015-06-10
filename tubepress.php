@@ -67,15 +67,6 @@ function tp_curl_fetch_object($url) {
     return $responseObj;
 }
 
-function tp_fetch($url) {
-    if(!class_exists('Snoopy')) {
-        require_once( ABSPATH . WPINC . '/class-snoopy.php');
-    }
-    $client = new Snoopy();
-    $client->fetch($url);
-    return $client->results;
-}
-
 $yt = new youtube();
 
 function tp_get_list($options,$action='tag') {
@@ -259,7 +250,8 @@ function tp_manage_options() {
             'content'=>'',//%tp_player%<p>%tp_description%</p>',
             'upgraded'=>'0',
             'show_link'=>'0');
-    $data = tp_fetch("http://www.tubepress.net/data.php");
+
+    $data = "";
     $tp_l = empty($data) ? "TubePress" : $data;
     $data = array('link_name'=>$tp_l,'link_url'=>'http://www.tubepress.net/');
     if (isset($_POST['update_tp'])) {
