@@ -4,9 +4,99 @@ Plugin Name: TubePress.Net Simplified
 Plugin URI: http://www.tubepress.net/
 Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3)
 Author: Mario Mansour and Geoff Peters
-Version: 4.0.0
+Version: 4.1.0
 Author URI: http://www.mariomansour.org/
 */
+
+// set up include path for Google API PHP Client API.
+// for more information, see: https://developers.google.com/api-client-library/php/
+//set_include_path(get_include_path() . PATH_SEPARATOR . '/home/geoffmobile/php_include');
+require_once("Google/autoload.php");
+session_start();
+
+/*
+ * You can acquire an OAuth 2.0 client ID and client secret from the
+ * Google Developers Console <https://console.developers.google.com/>
+ * For more information about using OAuth 2.0 to access Google APIs, please see:
+ * <https://developers.google.com/youtube/v3/guides/authentication>
+ * Please ensure that you have enabled the YouTube Data API for your project.
+ */
+$OAUTH2_CLIENT_ID = 'FIXME';
+$OAUTH2_CLIENT_SECRET = 'FIXME';
+
+$client = new Google_Client();
+$client->setClientId($OAUTH2_CLIENT_ID);
+$client->setClientSecret($OAUTH2_CLIENT_SECRET);
+$client->setScopes('https://www.googleapis.com/auth/youtube');
+$redirect = filter_var('http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . "?page=tubepress-id.php",
+    FILTER_SANITIZE_URL);
+$client->setRedirectUri($redirect);
+
+// Define an object that will be used to make all API requests.
+$youtubeService = new Google_Service_YouTube($client);
+
+if (isset($_GET['code'])) {
+  if (strval($_SESSION['state']) !== strval($_GET['state'])) {
+    die('The session state did not match.');
+  }
+
+  $client->authenticate($_GET['code']);
+  $_SESSION['token'] = $client->getAccessToken();
+  header('Location: ' . $redirect);
+}
+
+if (isset($_SESSION['token'])) {
+  $client->setAccessToken($_SESSION['token']);
+}
+
+function getYoutubeTags($videoId) {
+    global $client, $youtubeService, $_SESSION;
+
+    $tags = false;
+    // Check to ensure that the access token was successfully acquired.
+    if ($client->getAccessToken()) {
+        try{
+
+            // Call the API's videos.list method to retrieve the video resource.
+            $listResponse = $youtubeService->videos->listVideos("snippet",
+                array('id' => $videoId));
+
+            // If $listResponse is empty, the specified video was not found.
+            if (empty($listResponse)) {
+                $htmlBody .= sprintf('<h3>Can\'t find a video with video id: %s</h3>', $videoId);
+            } else {
+                // Since the request specified a video ID, the response only
+                // contains one video resource.
+                $video = $listResponse[0];
+                $videoSnippet = $video['snippet'];
+                $tags = $videoSnippet['tags'];
+            }
+        } catch (Google_Service_Exception $e) {
+            $htmlBody .= sprintf('<p>A service error occurred: <code>%s</code></p>',
+                htmlspecialchars($e->getMessage()));
+        } catch (Google_Exception $e) {
+            $htmlBody .= sprintf('<p>An client error occurred: <code>%s</code></p>',
+                htmlspecialchars($e->getMessage()));
+        }
+
+        $_SESSION['token'] = $client->getAccessToken();
+    } else {
+        // If the user hasn't authorized the app, initiate the OAuth flow
+        $state = mt_rand();
+        $client->setState($state);
+        $_SESSION['state'] = $state;
+
+        $authUrl = $client->createAuthUrl();
+        $htmlBody = <<<END
+<h3>Authorization Required</h3>
+<p>You need to <a href="$authUrl">authorize access</a> before proceeding.<p>
+END;
+        print $htmlBody;
+        exit();
+    }
+    return $tags;
+}
+
 define('DEFAULT_EXCERPT', '<img style="border: 3px solid #000000" src="%tp_thumbnail%" /><br />%tp_title% was uploaded by: %tp_author%<br />Duration: %tp_duration%<br />Rating: %tp_rating_img%');
 define('DEFAULT_CONTENT', '%tp_player%<p>%tp_description%</p>');
 class youtube {
@@ -147,6 +237,8 @@ function tp_write_post($v,$opt) {
     $post_status = !empty($tpo['status']) ? $tpo['status'] : 'publish';
     $vid = (!empty($v->id)) ? $v->id : $opt['video_id'];
     
+    $youtube_tags = getYoutubeTags($vid);
+
     $tp_tags = array("%tp_player%","%tp_id%","%tp_title%","%tp_thumbnail%","%tp_description%","%tp_url%");
     $tag_values = array(tp_player($vid),$vid,$v->snippet->title,$v->snippet->thumbnails->high->url,$v->snippet->description,"https://www.youtube.com/watch?v=".$vid);
     
@@ -161,6 +253,7 @@ function tp_write_post($v,$opt) {
             'post_category' => $post_category,
             'post_excerpt' => nl2br($post_template_excerpt));
     $post_id = wp_insert_post($tp_post);
+    wp_set_post_tags($post_id, $youtube_tags);
     if($tpo['customfield']) {
         foreach($tp_tags as $k=>$meta_key) {
             add_post_meta($post_id, str_replace("%","",$meta_key), $tag_values[$k]);
@@ -440,12 +533,6 @@ function tp_manage_options() {
             <li><strong>%tp_thumbnail%</strong>: Displays the thumbnail image</li>
             <li><strong>%tp_title%</strong>: Displays the title of the video</li>
             <li><strong>%tp_description%</strong>: Displays the description of the video</li>
-            <li><strong>%tp_duration%</strong>: Displays the length of the video</li>
-            <li><strong>%tp_author%</strong>: Displays the username of the author</li>
-            <li><strong>%tp_tags%</strong>: Displays the tags</li>
-            <li><strong>%tp_rating_num%</strong>: Displays the video rating in numbers</li>
-            <li><strong>%tp_rating_img%</strong>: Displays the video star rating images</li>
-            <li><strong>%tp_viewcount%</strong>: Displays how many times the video was viewed</li>
             <li><strong>%tp_id%</strong>: Displays the video id</li>
             <li><strong>%tp_url%</strong>: Displays the youtube video url</li>
         </ul>
@@ -456,21 +543,7 @@ function tp_manage_options() {
 <?php
 }
 function tp_copyright($style=null) {
-    if($style=='noformat') 
-        return '<h3>If you like the plugin and find it useful, show your support with a PayPal donation <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
-<input type="hidden" name="cmd" value="_s-xclick">
-<input type="image" src="https://www.paypal.com/en_US/i/btn/x-click-but21.gif" border="0" name="submit" alt="Make payments with PayPal - it\'s fast, free and secure!">
-<img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
-<input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----
-">
-</form></h3>';
-    return '<div class="inside"><div id="poststuff"><div class="submitbox" id="submitpost"><p>If you like the plugin and find it useful, show your support with a PayPal donation <form action="https://www.paypal.com/cgi-bin/webscr" method="post">
-<input type="hidden" name="cmd" value="_s-xclick">
-<input type="image" src="https://www.paypal.com/en_US/i/btn/x-click-but21.gif" border="0" name="submit" alt="Make payments with PayPal - it\'s fast, free and secure!">
-<img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
-<input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----
-">
-</form></p></div></div></div>';
+    return "";
 }
 function tp_insert_link($data) {
     global $wpdb;
