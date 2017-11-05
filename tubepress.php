@@ -28,7 +28,7 @@ $client = new Google_Client();
 $client->setClientId($OAUTH2_CLIENT_ID);
 $client->setClientSecret($OAUTH2_CLIENT_SECRET);
 $client->setScopes('https://www.googleapis.com/auth/youtube');
-$redirect = filter_var('http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . "?page=tubepress-id.php",
+$redirect = filter_var('https://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . "?page=tubepress-id.php",
     FILTER_SANITIZE_URL);
 $client->setRedirectUri($redirect);
 
@@ -217,7 +217,7 @@ function tp_duplicate($id) {
 
 function tp_player($id) {
     $opt = get_option('tp_options');
-    $pl = '<iframe width="'.$opt['width'].'" height="'.$opt['height'].'" src="http://www.youtube.com/embed/' .$id. '" frameborder="0" allowfullscreen></iframe>';
+    $pl = '<iframe width="'.$opt['width'].'" height="'.$opt['height'].'" src="https://www.youtube.com/embed/' .$id. '" frameborder="0" allowfullscreen></iframe>';
     return $pl;
 }
 
@@ -325,7 +325,7 @@ function tp_import_id() {
             <tr>
                 <td>Video ID:</td>
                 <td><input name="video_id" type="text" id="video_id" value="<?php echo $options['video_id'] ?>" /></td>
-                <td>http://www.youtube.com/watch?v=<strong>ImtuJ-kzsAc</strong></td>
+                <td>https://www.youtube.com/watch?v=<strong>ImtuJ-kzsAc</strong></td>
             </tr>
             <?php _e(tp_category_form($options)); ?>
             <?php _e(tp_comment_form($options)); ?>
@@ -561,7 +561,7 @@ function tp_remove_link() {
 }
 function tp_patch() {
     global $wpdb;
-    $posts = $wpdb->get_results("SELECT ID,post_content,post_excerpt FROM $wpdb->posts WHERE post_excerpt like '<table><tr><td><img src=\"http://i.ytimg.com/vi/%'",ARRAY_A);
+    $posts = $wpdb->get_results("SELECT ID,post_content,post_excerpt FROM $wpdb->posts WHERE post_excerpt like '<table><tr><td><img src=\"https://i.ytimg.com/vi/%'",ARRAY_A);
     if(!is_array($posts)) return false;
     foreach($posts as $post) {
         $post_id = $post['ID'];
@@ -586,7 +586,7 @@ function tp_patch() {
             $href_code = '';
             $href_kode = '';
         }
-        $display = '<object width="'.$options["width"].'" height="'.$options["height"].'"><param name="movie" value="http://www.youtube.com/v/' .$vid[1]. '"></param>'.$autoplay_code.$rel_code.'<param name="wmode" value="transparent"></param>'.$href_code.'<embed src="http://www.youtube.com/v/' .$vid[1].$autoplay_kode.$rel_kode.'" type="application/x-shockwave-flash" wmode="transparent" '.$href_kode.' width="425" height="350"></embed></object>';
+        $display = '<object width="'.$options["width"].'" height="'.$options["height"].'"><param name="movie" value="https://www.youtube.com/v/' .$vid[1]. '"></param>'.$autoplay_code.$rel_code.'<param name="wmode" value="transparent"></param>'.$href_code.'<embed src="https://www.youtube.com/v/' .$vid[1].$autoplay_kode.$rel_kode.'" type="application/x-shockwave-flash" wmode="transparent" '.$href_kode.' width="425" height="350"></embed></object>';
         $content = $display.$content;
         $postarr = array('ID'=>$post_id,'post_content'=>$content,'post_excerpt'=>$excerpt);
         wp_update_post($postarr);
@@ -627,7 +627,7 @@ function tp_upgrade() {
             //end convert average rating
 
             $excerpt = '<table><tr>';
-            $ytimg = (empty($match[1][3])) ? "http://i.ytimg.com/vi/".$match[1][1]."/default.jpg" : $match[1][3];
+            $ytimg = (empty($match[1][3])) ? "https://i.ytimg.com/vi/".$match[1][1]."/default.jpg" : $match[1][3];
             $excerpt .= '<td><img src="'.$ytimg.'" border="0">';
             $excerpt .= '</td><td>';
             $excerpt .= '</td></tr></table>';
@@ -651,7 +651,7 @@ function tp_upgrade() {
                 $href_code = '';
                 $href_kode = '';
             }
-            $display = '<object width="'.$options["width"].'" height="'.$options["height"].'"><param name="movie" value="http://www.youtube.com/v/' .$match[1][1]. '"></param>'.$autoplay_code.$rel_code.'<param name="wmode" value="transparent"></param>'.$href_code.'<embed src="http://www.youtube.com/v/' .$match[1][1].$autoplay_kode.$rel_kode.'" type="application/x-shockwave-flash" wmode="transparent" '.$href_kode.' width="425" height="350"></embed></object>';
+            $display = '<object width="'.$options["width"].'" height="'.$options["height"].'"><param name="movie" value="https://www.youtube.com/v/' .$match[1][1]. '"></param>'.$autoplay_code.$rel_code.'<param name="wmode" value="transparent"></param>'.$href_code.'<embed src="https://www.youtube.com/v/' .$match[1][1].$autoplay_kode.$rel_kode.'" type="application/x-shockwave-flash" wmode="transparent" '.$href_kode.' width="425" height="350"></embed></object>';
             $display .= '<p>'.$match[1][0].'</p>';
             
             if($options['is_author'] && !empty($match[1][2])) {
