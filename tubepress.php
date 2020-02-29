@@ -4,14 +4,13 @@ Plugin Name: TubePress.Net Simplified
 Plugin URI: http://www.tubepress.net/
 Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3)
 Author: Mario Mansour and Geoff Peters
-Version: 4.1.0
+Version: 4.1.1
 Author URI: http://www.mariomansour.org/
 */
 
 // set up include path for Google API PHP Client API.
 // for more information, see: https://developers.google.com/api-client-library/php/
-//set_include_path(get_include_path() . PATH_SEPARATOR . '/home/geoffmobile/php_include');
-require_once("Google/autoload.php");
+require_once '/FIXME-make-this-the-path-to/vendor/autoload.php';
 session_start();
 
 /*
@@ -50,33 +49,30 @@ if (isset($_SESSION['token'])) {
 }
 
 function getYoutubeTags($videoId) {
+   return getYoutubeVideoInfo($videoId)->items[0]->snippet->tags;
+}
+
+function getYoutubeVideoInfo($videoId) {
     global $client, $youtubeService, $_SESSION;
 
     $tags = false;
     // Check to ensure that the access token was successfully acquired.
     if ($client->getAccessToken()) {
-        try{
-
+        try {
             // Call the API's videos.list method to retrieve the video resource.
             $listResponse = $youtubeService->videos->listVideos("snippet",
                 array('id' => $videoId));
 
             // If $listResponse is empty, the specified video was not found.
-            if (empty($listResponse)) {
-                $htmlBody .= sprintf('<h3>Can\'t find a video with video id: %s</h3>', $videoId);
-            } else {
-                // Since the request specified a video ID, the response only
-                // contains one video resource.
-                $video = $listResponse[0];
-                $videoSnippet = $video['snippet'];
-                $tags = $videoSnippet['tags'];
-            }
+            //if (empty($listResponse)) {
+            //    $htmlBody .= sprintf('<h3>Can\'t find a video with video id: %s</h3>', $videoId);
+            //}
         } catch (Google_Service_Exception $e) {
-            $htmlBody .= sprintf('<p>A service error occurred: <code>%s</code></p>',
-                htmlspecialchars($e->getMessage()));
+            //$htmlBody .= sprintf('<p>A service error occurred: <code>%s</code></p>',
+            //    htmlspecialchars($e->getMessage()));
         } catch (Google_Exception $e) {
-            $htmlBody .= sprintf('<p>An client error occurred: <code>%s</code></p>',
-                htmlspecialchars($e->getMessage()));
+            //$htmlBody .= sprintf('<p>An client error occurred: <code>%s</code></p>',
+            //    htmlspecialchars($e->getMessage()));
         }
 
         $_SESSION['token'] = $client->getAccessToken();
@@ -94,41 +90,11 @@ END;
         print $htmlBody;
         exit();
     }
-    return $tags;
+    return $listResponse;
 }
 
-define('DEFAULT_EXCERPT', '<img style="border: 3px solid #000000" src="%tp_thumbnail%" /><br />%tp_title% was uploaded by: %tp_author%<br />Duration: %tp_duration%<br />Rating: %tp_rating_img%');
+define('DEFAULT_EXCERPT', '<img src="%tp_thumbnail%" /><br />%tp_title% was uploaded by: %tp_author%<br />Duration: %tp_duration%<br />Rating: %tp_rating_img%');
 define('DEFAULT_CONTENT', '%tp_player%<p>%tp_description%</p>');
-class youtube {
-
-    // Please replace the apiKey below with your own Youtube API Key.
-    // For how to get a key, please see: https://developers.google.com/youtube/v3/getting-started
-
-    var $apiKey = "AIzaSyBmoTdqpS1gvukvG9l9HBX2nEJpJCyAljQ";
-
-    var $url;
-    function videos_get_details($video_id) {
-        $functionName = "/videos";
-        $payload = array("part"=>"snippet,id","id"=>$video_id);
-        $results = $this->getGdataRsp($functionName, $payload);
-        return $results;
-    }    
-    function getGdataRsp($functionName, $payload) {
-        $this->url = $this->buildQuery($functionName, $payload);
-        $response = tp_curl_fetch_object($this->url);
-        return $response;
-    }
-    function buildQuery($functionName, $payload) {
-        $payloadString = "";
-        if ($payload != "") {
-            foreach ($payload as $name => $value) {
-                $payloadString .= '&'.$name.'='.$value;
-            }
-        }
-        $url = 'https://www.googleapis.com/youtube/v3'.$functionName.'?key='.$this->apiKey.$payloadString;
-        return $url;
-    }
-}
 
 if(!function_exists('json_decode') ){
     function json_decode($content, $assoc=false){
@@ -157,10 +123,7 @@ function tp_curl_fetch_object($url) {
     return $responseObj;
 }
 
-$yt = new youtube();
-
 function tp_get_list($options,$action='tag') {
-    global $yt;
     $warning = '';
     $status = 0;
     $gen_options = get_option('tp_options');
@@ -173,7 +136,7 @@ function tp_get_list($options,$action='tag') {
     if(!is_array($options)) return false;
     switch($action) {
         case 'id':
-            $xml = $yt->videos_get_details($options['video_id']);
+            $xml = getYoutubeVideoInfo($options['video_id']);
         break;
     }
     echo '<div class="wrap">';
@@ -308,7 +271,7 @@ function tp_import_id() {
     if (isset($_POST['update_tp'])) {
         $options['video_id'] = $_POST['video_id'];
         $options['cat'] = $_POST['cat'];
-        $options['comments'] = $_POST['comments'];
+        //$options['comments'] = $_POST['comments'];
         update_option('tp_options_id', $options);   
         tp_get_list($_POST,'id');
     } else {
@@ -339,7 +302,7 @@ function tp_import_id() {
 function tp_manage_options() {
     $warning = '';
     $default = array('width'=>'425','height'=>'344','autoplay'=>'0','rel'=>'1','color'=>'1','border'=>'0', 'duplicate'=>'1', 'type'=>'post', 'status'=>'publish', 'customfield'=>'0',
-            'excerpt'=>'',//<img style="border: 3px solid #000000" src="%tp_thumbnail%" /><br />%tp_title% was uploaded by: %tp_author%<br />Duration: %tp_duration%<br />Rating: %tp_rating_img%',
+            'excerpt'=>'',//<img src="%tp_thumbnail%" /><br />%tp_title% was uploaded by: %tp_author%<br />Duration: %tp_duration%<br />Rating: %tp_rating_img%',
             'content'=>'',//%tp_player%<p>%tp_description%</p>',
             'upgraded'=>'0',
             'show_link'=>'0');
