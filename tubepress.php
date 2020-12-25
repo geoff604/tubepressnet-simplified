@@ -4,7 +4,7 @@ Plugin Name: TubePress.Net Simplified
 Plugin URI: http://www.tubepress.net/
 Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3)
 Author: Mario Mansour and Geoff Peters
-Version: 4.1.1
+Version: 4.1.2
 Author URI: http://www.mariomansour.org/
 */
 
@@ -44,6 +44,8 @@ if (isset($_GET['code'])) {
   header('Location: ' . $redirect);
 }
 
+session_write_close();
+
 if (isset($_SESSION['token'])) {
   $client->setAccessToken($_SESSION['token']);
 }
@@ -75,12 +77,17 @@ function getYoutubeVideoInfo($videoId) {
             //    htmlspecialchars($e->getMessage()));
         }
 
+        session_start();
         $_SESSION['token'] = $client->getAccessToken();
+        session_write_close();
     } else {
         // If the user hasn't authorized the app, initiate the OAuth flow
         $state = mt_rand();
         $client->setState($state);
+		
+		session_start();
         $_SESSION['state'] = $state;
+		session_write_close();
 
         $authUrl = $client->createAuthUrl();
         $htmlBody = <<<END
@@ -180,6 +187,28 @@ function tp_duplicate($id) {
 
 function tp_player($id) {
     $opt = get_option('tp_options');
+    /* 
+    To enable responsive video resizing, can add the following CSS into your theme:
+
+.video-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 Aspect Ratio (divide 9 by 16 = 0.5625) */
+}
+
+.video-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
+   and then enable the next line below, and comment out the line following it:
+*/
+    //$pl = '<div class="video-container-outer"><div class="video-container"><iframe class="video-iframe" src="https://www.youtube.com/embed/' .$id. '" frameborder="0" allowfullscreen></iframe></div></div>';
     $pl = '<iframe width="'.$opt['width'].'" height="'.$opt['height'].'" src="https://www.youtube.com/embed/' .$id. '" frameborder="0" allowfullscreen></iframe>';
     return $pl;
 }
