@@ -3,7 +3,7 @@ Contributors: Mario Mansour and Geoff Peters
 Donate link: http://www.tubepress.net/
 Tags: wordpress video plugin, youtube, video, import youtube videos, wordpress plugins, wordpress youtube, youtube wordpress
 Requires at least: 2.7
-Tested up to: 4.2.2
+Tested up to: 6.9.1
 Stable tag: trunk
 
 Import Youtube Videos directly into your wordpress blog post or pages.
@@ -22,13 +22,22 @@ Import Youtube Videos directly into your wordpress blog post or pages.
 
 == Installation ==
 
-
-1. Upload `tubepress.net` folder to the `/wp-content/plugins/` directory
-2. Activate the plugin through the 'Plugins' menu in WordPress
-3. That's all folk, start importing videos from Youtube
+* Update the items in tubepress.php that have the word FIXME, following the comments in that file.
+** In particular, you'll need the Google API PHP Client to be installed on your web server and
+an OAuth 2.0 client ID set up in the Google Developers Console.
+** In Google Developers Console, set the Authorized JavaScript origin to your domain that you are 
+hosting wordpress on.
+* Upload `tubepress.net` folder to the `/wp-content/plugins/` directory
+* Activate the plugin through the 'Plugins' menu in WordPress
+* That's all folk, start importing videos from Youtube
 
 
 == Change Log ==
+
+= 4.2.0 =
+* Change to client-side auth to avoid storing secret on server
+* Rewrote this Wordpress plugin so that it uses OAUTH2 request from the
+browser, so no client secret will need to be stored on the web server.
 
 = 4.0.0 =
 * Simplified fork of code
