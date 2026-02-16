@@ -2,97 +2,144 @@
 /*
 Plugin Name: TubePress.Net Simplified
 Plugin URI: http://www.tubepress.net/
-Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3)
+Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3) using Client-Side Auth.
 Author: Mario Mansour and Geoff Peters
-Version: 4.1.2
+Version: 4.2.0
 Author URI: http://www.mariomansour.org/
+*/
+
+/*
+To enable responsive video resizing, can add the following CSS into your theme:
+
+.video-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 Aspect Ratio (divide 9 by 16 = 0.5625) */
+}
+
+.video-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
 */
 
 // set up include path for Google API PHP Client API.
 // for more information, see: https://developers.google.com/api-client-library/php/
 require_once '/FIXME-make-this-the-path-to/vendor/autoload.php';
-session_start();
+
+/* * NOTE: Session start is no longer strictly necessary for Auth, 
+ * but kept if other plugins/parts rely on it.
+ */
+if (!session_id()) {
+    session_start();
+}
 
 /*
- * You can acquire an OAuth 2.0 client ID and client secret from the
+ * You can acquire an OAuth 2.0 client ID from the
  * Google Developers Console <https://console.developers.google.com/>
  * For more information about using OAuth 2.0 to access Google APIs, please see:
  * <https://developers.google.com/youtube/v3/guides/authentication>
  * Please ensure that you have enabled the YouTube Data API for your project.
+ * CONFIGURATION
+ * We no longer need the Client Secret on the server.
  */
 $OAUTH2_CLIENT_ID = 'FIXME';
-$OAUTH2_CLIENT_SECRET = 'FIXME';
 
 $client = new Google_Client();
 $client->setClientId($OAUTH2_CLIENT_ID);
-$client->setClientSecret($OAUTH2_CLIENT_SECRET);
-$client->setScopes('https://www.googleapis.com/auth/youtube');
-$redirect = filter_var('https://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . "?page=tubepress-id.php",
-    FILTER_SANITIZE_URL);
-$client->setRedirectUri($redirect);
+// Scopes are now handled in the JS, but good to keep here for reference or validation if needed
+$client->setScopes('https://www.googleapis.com/auth/youtube.readonly');
+
+/*
+ * AUTH LOGIC REPLACEMENT
+ * Instead of checking $_SESSION or exchanging a code, we look for a cookie
+ * set by the browser.
+ */
+if (isset($_COOKIE['tp_access_token'])) {
+    // We manually set the token object. The library expects an array or JSON string.
+    $accessToken = array(
+        'access_token' => $_COOKIE['tp_access_token'],
+        'expires_in' => 3600, // Standard expiry, though we rely on the cookie's life
+        'created' => time(),
+        'scope' => 'https://www.googleapis.com/auth/youtube.readonly'
+    );
+    $client->setAccessToken($accessToken);
+}
 
 // Define an object that will be used to make all API requests.
 $youtubeService = new Google_Service_YouTube($client);
 
-if (isset($_GET['code'])) {
-  if (strval($_SESSION['state']) !== strval($_GET['state'])) {
-    die('The session state did not match.');
-  }
-
-  $client->authenticate($_GET['code']);
-  $_SESSION['token'] = $client->getAccessToken();
-  header('Location: ' . $redirect);
-}
-
-session_write_close();
-
-if (isset($_SESSION['token'])) {
-  $client->setAccessToken($_SESSION['token']);
-}
+// -----------------------------------------------------------
+// HELPER FUNCTIONS
+// -----------------------------------------------------------
 
 function getYoutubeTags($videoId) {
    return getYoutubeVideoInfo($videoId)->items[0]->snippet->tags;
 }
 
 function getYoutubeVideoInfo($videoId) {
-    global $client, $youtubeService, $_SESSION;
+    global $client, $youtubeService, $OAUTH2_CLIENT_ID;
 
-    $tags = false;
-    // Check to ensure that the access token was successfully acquired.
-    if ($client->getAccessToken()) {
+    $listResponse = null;
+
+    // Check to ensure that the access token was successfully acquired from the cookie
+    if ($client->getAccessToken() && !$client->isAccessTokenExpired()) {
         try {
             // Call the API's videos.list method to retrieve the video resource.
             $listResponse = $youtubeService->videos->listVideos("snippet",
                 array('id' => $videoId));
-
-            // If $listResponse is empty, the specified video was not found.
-            //if (empty($listResponse)) {
-            //    $htmlBody .= sprintf('<h3>Can\'t find a video with video id: %s</h3>', $videoId);
-            //}
         } catch (Google_Service_Exception $e) {
-            //$htmlBody .= sprintf('<p>A service error occurred: <code>%s</code></p>',
-            //    htmlspecialchars($e->getMessage()));
+            // Error handling
         } catch (Google_Exception $e) {
-            //$htmlBody .= sprintf('<p>An client error occurred: <code>%s</code></p>',
-            //    htmlspecialchars($e->getMessage()));
+            // Error handling
         }
-
-        session_start();
-        $_SESSION['token'] = $client->getAccessToken();
-        session_write_close();
     } else {
-        // If the user hasn't authorized the app, initiate the OAuth flow
-        $state = mt_rand();
-        $client->setState($state);
-		
-		session_start();
-        $_SESSION['state'] = $state;
-		session_write_close();
-
-        $authUrl = $client->createAuthUrl();
+        // If the token is missing or expired, we present the JS Auth Button
         $htmlBody = <<<END
-<h3>Authorization Required</h3>
-<p>You need to <a href="$authUrl">authorize access</a> before proceeding.<p>
+<div class="wrap">
+    <h3>Authorization Required</h3>
+    <p>You need to authorize access via Google to import videos.</p>
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <script>
+      var client;
+      
+      function initClient() {
+        client = google.accounts.oauth2.initTokenClient({
+          client_id: '$OAUTH2_CLIENT_ID',
+          scope: 'https://www.googleapis.com/auth/youtube.readonly',
+          callback: (response) => {
+            if (response.access_token) {
+              // Store the token in a cookie for 1 hour (3600 seconds)
+              document.cookie = "tp_access_token=" + response.access_token + "; max-age=" + response.expires_in + "; path=/";
+              
+              // Reload the page so PHP can read the cookie
+              window.location.reload();
+            }
+          },
+        });
+      }
+
+      function getToken() {
+        // Trigger the popup
+        client.requestAccessToken();
+      }
+      
+      // Initialize the client when the script loads
+      window.onload = function() {
+        initClient();
+      };
+    </script>
+
+    <button onclick="getToken()" class="button button-primary">Authorize with YouTube</button>
+</div>
 END;
         print $htmlBody;
         exit();
@@ -146,6 +193,12 @@ function tp_get_list($options,$action='tag') {
             $xml = getYoutubeVideoInfo($options['video_id']);
         break;
     }
+    
+    // Safety check: ensure we actually got an object back before trying to read it
+    if (!is_object($xml)) {
+         return; // Auth required screen already printed in getYoutubeVideoInfo
+    }
+
     echo '<div class="wrap">';
     _e('<h2>Imported Video List</h2>');
 
@@ -187,29 +240,7 @@ function tp_duplicate($id) {
 
 function tp_player($id) {
     $opt = get_option('tp_options');
-    /* 
-    To enable responsive video resizing, can add the following CSS into your theme:
-
-.video-container {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  padding-top: 56.25%; /* 16:9 Aspect Ratio (divide 9 by 16 = 0.5625) */
-}
-
-.video-iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  width: 100%;
-  height: 100%;
-}
-   and then enable the next line below, and comment out the line following it:
-*/
-    //$pl = '<div class="video-container-outer"><div class="video-container"><iframe class="video-iframe" src="https://www.youtube.com/embed/' .$id. '" frameborder="0" allowfullscreen></iframe></div></div>';
-    $pl = '<iframe width="'.$opt['width'].'" height="'.$opt['height'].'" src="https://www.youtube.com/embed/' .$id. '" frameborder="0" allowfullscreen></iframe>';
+    $pl = '<div class="video-container-outer"><div class="video-container"><iframe class="video-iframe" src="https://www.youtube.com/embed/' .$id. '" frameborder="0" allowfullscreen></iframe></div></div>';
     return $pl;
 }
 
@@ -278,21 +309,6 @@ function tp_order_form($options) {
 }
 function tp_comment_form($options) {
     return "";
-    $tf .= '<tr>';
-    $tf .= '    <td>Import Comments ?</td>';
-    $tf .= '    <td>';
-    $tf .= '    <select name="comments" id="comments">';
-    $tf .= '    <option';
-    if ($options['comments'] == 'No') $tf .= ' selected="selected"';
-    $tf .= '>No</option>';
-    $tf .= '    <option';
-    if ($options['comments'] == 'Yes') $tf .= ' selected="selected"';
-    $tf .= '>Yes</option>';
-    $tf .= '    </select>';
-    $tf .= '    </td>';
-    $tf .= '    <td>This will import the users comments from youtube</td>';
-    $tf .= '</tr>';
-    return $tf;
 }
 
 function tp_import_id() {
@@ -331,8 +347,8 @@ function tp_import_id() {
 function tp_manage_options() {
     $warning = '';
     $default = array('width'=>'425','height'=>'344','autoplay'=>'0','rel'=>'1','color'=>'1','border'=>'0', 'duplicate'=>'1', 'type'=>'post', 'status'=>'publish', 'customfield'=>'0',
-            'excerpt'=>'',//<img src="%tp_thumbnail%" /><br />%tp_title% was uploaded by: %tp_author%<br />Duration: %tp_duration%<br />Rating: %tp_rating_img%',
-            'content'=>'',//%tp_player%<p>%tp_description%</p>',
+            'excerpt'=>'',
+            'content'=>'',
             'upgraded'=>'0',
             'show_link'=>'0');
 
