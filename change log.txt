@@ -1,5 +1,13 @@
 == Change Log file ==
 
+Changes in 4.3.0
+
+* Implemented Zero-Backend-Token architecture: Video metadata is fetched directly in the browser via client-side OAuth 2.0.
+* Google API tokens and secrets never touch or reside on the WordPress backend.
+* Completely removed server-side Composer vendor autoload and Google PHP Client SDK dependencies.
+* Added Google OAuth Client ID field and step-by-step setup documentation in TubePress Setup screen.
+* Modernized Import by ID with AJAX progress and live post view/edit links.
+
 Changes in 4.2.1
 
 * Security hardening: Added CSRF protection using WordPress nonces on all admin forms.

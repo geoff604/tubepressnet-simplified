@@ -22,17 +22,21 @@ Import Youtube Videos directly into your wordpress blog post or pages.
 
 == Installation ==
 
-* Update the items in tubepress.php that have the word FIXME, following the comments in that file.
-** In particular, you'll need the Google API PHP Client to be installed on your web server and
-an OAuth 2.0 client ID set up in the Google Developers Console.
-** In Google Developers Console, set the Authorized JavaScript origin to your domain that you are 
-hosting wordpress on.
-* Upload `tubepress.net` folder to the `/wp-content/plugins/` directory
-* Activate the plugin through the 'Plugins' menu in WordPress
-* That's all folk, start importing videos from Youtube
+* Upload `tubepress.net` folder to the `/wp-content/plugins/` directory (or install via Plugins menu).
+* Activate the plugin through the 'Plugins' menu in WordPress.
+* Navigate to 'TubePress' > 'Setup' in the admin menu and enter your Google OAuth 2.0 Client ID.
+  (Follow the step-by-step instructions on the Setup screen to create your Client ID in Google Cloud Console).
+* In Google Cloud Console, ensure your site's domain is added under "Authorized JavaScript origins".
+* Go to 'TubePress' > 'Import By ID' to start importing videos! No server Composer dependencies needed.
 
 
 == Change Log ==
+
+= 4.3.0 =
+* Architecture: Implemented Zero-Backend-Token architecture. YouTube video metadata is now fetched directly in the browser via client-side OAuth 2.0, completely eliminating the need for Google tokens on the backend.
+* Simplified: Removed server-side Composer vendor autoload and Google PHP Client SDK dependencies.
+* Usability: Added Google OAuth Client ID setting and detailed setup guide directly within the TubePress Setup screen.
+* Interactive Import: Modernized 'Import By ID' with real-time AJAX import, live preview, and post links.
 
 = 4.2.1 =
 * Security hardening: Added CSRF protection using WordPress nonces on all admin forms.

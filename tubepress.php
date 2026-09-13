@@ -2,9 +2,9 @@
 /*
 Plugin Name: TubePress.Net Simplified
 Plugin URI: http://www.tubepress.net/
-Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3) using Client-Side Auth.
+Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3) using Client-Side Auth without backend tokens.
 Author: Mario Mansour and Geoff Peters
-Version: 4.2.1
+Version: 4.3.0
 Author URI: http://www.mariomansour.org/
 */
 
@@ -34,12 +34,6 @@ To enable responsive video resizing, can add the following CSS into your theme:
 }
 */
 
-// Set up include path for Google API PHP Client API.
-// For more information, see: https://developers.google.com/api-client-library/php/
-if (!defined('TP_VENDOR_AUTOLOAD')) {
-    define('TP_VENDOR_AUTOLOAD', __DIR__ . '/vendor/autoload.php');
-}
-
 /*
  * You can acquire an OAuth 2.0 client ID from the
  * Google Developers Console <https://console.developers.google.com/>
@@ -47,324 +41,56 @@ if (!defined('TP_VENDOR_AUTOLOAD')) {
  * <https://developers.google.com/youtube/v3/guides/authentication>
  * Please ensure that you have enabled the YouTube Data API for your project.
  * CONFIGURATION
- * We no longer need the Client Secret on the server.
+ * We no longer need the Client Secret or Access Token on the server.
  */
-// Google OAuth 2.0 Client ID. Can be overridden in wp-config.php.
+
+// Optional constant fallback for OAuth 2.0 Client ID (can also be configured in TubePress Setup screen).
 if (!defined('TP_OAUTH2_CLIENT_ID')) {
-    define('TP_OAUTH2_CLIENT_ID', 'FIXME');
+    define('TP_OAUTH2_CLIENT_ID', '');
 }
 
 define('DEFAULT_EXCERPT', '<img src="%tp_thumbnail%" /><br />%tp_title% was uploaded by: %tp_author%<br />Duration: %tp_duration%<br />Rating: %tp_rating_img%');
 define('DEFAULT_CONTENT', '%tp_player%<p>%tp_description%</p>');
 
 /**
- * Returns the path to the Composer vendor autoload file.
+ * Retrieves the configured Google OAuth 2.0 Client ID.
  */
-function tp_get_autoload_path() {
-    return apply_filters('tubepress_autoload_path', TP_VENDOR_AUTOLOAD);
+function tp_get_client_id() {
+    $options = get_option('tp_options', array());
+    if (!empty($options['client_id'])) {
+        return trim($options['client_id']);
+    }
+    if (defined('TP_OAUTH2_CLIENT_ID') && TP_OAUTH2_CLIENT_ID !== '' && TP_OAUTH2_CLIENT_ID !== 'FIXME') {
+        return TP_OAUTH2_CLIENT_ID;
+    }
+    return '';
 }
-
-/**
- * Admin notice if dependencies are missing.
- */
-function tp_check_dependencies() {
-    $screen = get_current_screen();
-    if ($screen && strpos($screen->id, 'tubepress') !== false) {
-        $autoload = tp_get_autoload_path();
-        if (!file_exists($autoload)) {
-            echo '<div class="notice notice-warning"><p><strong>' . esc_html__('TubePress:') . '</strong> ' .
-                 sprintf(
-                     /* translators: %s: path to vendor/autoload.php */
-                     esc_html__('Google API PHP Client autoload not found at %s. Please ensure dependencies are installed via Composer or configure the vendor path.'),
-                     '<code>' . esc_html($autoload) . '</code>'
-                 ) . '</p></div>';
-        }
-    }
-}
-add_action('admin_notices', 'tp_check_dependencies');
-
-/**
- * Retrieves the stored access token from user transient or sanitized cookie.
- */
-function tp_get_access_token() {
-    $user_id = get_current_user_id();
-    if ($user_id) {
-        $token = get_transient('tp_access_token_' . $user_id);
-        if (!empty($token)) {
-            return sanitize_text_field($token);
-        }
-    }
-    if (isset($_COOKIE['tp_access_token'])) {
-        return sanitize_text_field(wp_unslash($_COOKIE['tp_access_token']));
-    }
-    return null;
-}
-
-/**
- * Lazy loader for Google Client and YouTube Service.
- */
-function tp_get_youtube_service() {
-    static $youtubeService = null;
-    if ($youtubeService !== null) {
-        return $youtubeService;
-    }
-
-    $autoload = tp_get_autoload_path();
-    if (file_exists($autoload)) {
-        require_once $autoload;
-    }
-
-    if (!class_exists('Google_Client') || !class_exists('Google_Service_YouTube')) {
-        return null;
-    }
-
-    $client = new Google_Client();
-    $client->setClientId(TP_OAUTH2_CLIENT_ID);
-    // Scopes are now handled in the JS, but good to keep here for reference or validation if needed
-    $client->setScopes('https://www.googleapis.com/auth/youtube.readonly');
-
-    $token = tp_get_access_token();
-    if ($token) {
-        $accessToken = array(
-            'access_token' => $token,
-            'expires_in'   => 3600,
-            'created'      => time(),
-            'scope'        => 'https://www.googleapis.com/auth/youtube.readonly',
-        );
-        $client->setAccessToken($accessToken);
-    }
-
-    $youtubeService = new Google_Service_YouTube($client);
-    return $youtubeService;
-}
-
-/**
- * AJAX handler to securely save OAuth token in transient.
- */
-function tp_ajax_save_token() {
-    check_ajax_referer('tp_auth_nonce', 'security');
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error(esc_html__('Unauthorized'), 403);
-    }
-    $token = isset($_POST['token']) ? sanitize_text_field(wp_unslash($_POST['token'])) : '';
-    $expires_in = isset($_POST['expires_in']) ? absint($_POST['expires_in']) : 3600;
-    if (!empty($token)) {
-        set_transient('tp_access_token_' . get_current_user_id(), $token, $expires_in);
-        wp_send_json_success();
-    }
-    wp_send_json_error(esc_html__('No token provided'));
-}
-add_action('wp_ajax_tp_save_token', 'tp_ajax_save_token');
 
 // -----------------------------------------------------------
 // HELPER FUNCTIONS
 // -----------------------------------------------------------
 
-function getYoutubeTags($videoId) {
-    $info = getYoutubeVideoInfo($videoId);
-    if (is_object($info) && !is_wp_error($info) && !empty($info->items[0]->snippet->tags)) {
-        return (array) $info->items[0]->snippet->tags;
-    }
-    return array();
+function tp_player($id) {
+    $safe_id = sanitize_text_field($id);
+    return '<div class="video-container-outer"><div class="video-container"><iframe class="video-iframe" src="https://www.youtube.com/embed/' . esc_attr($safe_id) . '" frameborder="0" allowfullscreen></iframe></div></div>';
 }
 
-/**
- * Renders the Google OAuth client-side authorization prompt.
- */
-function tp_render_auth_screen() {
-    $client_id = TP_OAUTH2_CLIENT_ID;
-    $nonce = wp_create_nonce('tp_auth_nonce');
-    ?>
-    <div class="wrap">
-        <div class="notice notice-info" style="padding: 15px;">
-            <h3><?php echo esc_html__('YouTube Authorization Required'); ?></h3>
-            <p><?php echo esc_html__('You need to authorize access via Google to import videos.'); ?></p>
-            
-            <script src="https://accounts.google.com/gsi/client" async defer></script>
-            <script>
-            var tpClient;
-            function tpInitClient() {
-                if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-                    return;
-                }
-                tpClient = google.accounts.oauth2.initTokenClient({
-                    client_id: '<?php echo esc_js($client_id); ?>',
-                    scope: 'https://www.googleapis.com/auth/youtube.readonly',
-                    callback: function(response) {
-                        if (response.access_token) {
-                            // Store the token in a cookie for 1 hour (3600 seconds)
-                            var secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
-                            var maxAge = parseInt(response.expires_in, 10) || 3600;
-                            document.cookie = "tp_access_token=" + encodeURIComponent(response.access_token) + 
-                                              "; max-age=" + maxAge + 
-                                              "; path=/; SameSite=Lax" + secureFlag;
-                            
-                            // Also save via AJAX to transient
-                            var formData = new URLSearchParams();
-                            formData.append('action', 'tp_save_token');
-                            formData.append('token', response.access_token);
-                            formData.append('expires_in', maxAge);
-                            formData.append('security', '<?php echo esc_js($nonce); ?>');
-
-                            fetch(ajaxurl, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                body: formData
-                            }).finally(function() {
-                                // Reload the page so PHP can read the cookie
-                                window.location.reload();
-                            });
-                        }
-                    }
-                });
-            }
-
-            function tpGetToken() {
-                // Trigger the popup
-                if (!tpClient) {
-                    tpInitClient();
-                }
-                if (tpClient) {
-                    tpClient.requestAccessToken();
-                } else {
-                    alert('<?php echo esc_js(__('Google Sign-In is still loading. Please wait a moment and try again.')); ?>');
-                }
-            }
-
-            // Initialize the client when the script loads
-            window.addEventListener('DOMContentLoaded', function() {
-                tpInitClient();
-            });
-            </script>
-
-            <p>
-                <button type="button" onclick="tpGetToken()" class="button button-primary">
-                    <?php echo esc_html__('Authorize with YouTube'); ?>
-                </button>
-            </p>
-        </div>
-    </div>
-    <?php
-}
-
-function getYoutubeVideoInfo($videoId) {
-    $youtubeService = tp_get_youtube_service();
-    if (!$youtubeService) {
-        return new WP_Error('missing_dependency', __('Google API PHP Client is not loaded or vendor autoload is missing.'));
+function tp_rating_c($r) {
+    $r = floatval($r);
+    $img = '';
+    $t = 0;
+    for ($i = 0; $i < floor($r); $i++) {
+        $img .= '<img src="' . esc_url(plugins_url('/images/yt_rating_on.gif', __FILE__)) . '" alt="*" />';
     }
-
-    $token = tp_get_access_token();
-    if (!$token) {
-        return new WP_Error('auth_required', __('Authorization required'));
+    if ($r > floor($r)) {
+        $t = 1;
+        $img .= '<img src="' . esc_url(plugins_url('/images/yt_rating_half.gif', __FILE__)) . '" alt="½" />';
     }
-
-    try {
-        $client = $youtubeService->getClient();
-        if ($client->isAccessTokenExpired()) {
-            return new WP_Error('auth_required', __('Access token expired'));
-        }
-        $listResponse = $youtubeService->videos->listVideos("snippet", array('id' => $videoId));
-        return $listResponse;
-    } catch (Google_Service_Exception $e) {
-        return new WP_Error('google_service_error', $e->getMessage());
-    } catch (Google_Exception $e) {
-        return new WP_Error('google_client_error', $e->getMessage());
-    } catch (Exception $e) {
-        return new WP_Error('general_error', $e->getMessage());
+    $remaining = 5 - floor($r) - $t;
+    for ($i = 0; $i < $remaining; $i++) {
+        $img .= '<img src="' . esc_url(plugins_url('/images/yt_rating_off.gif', __FILE__)) . '" alt="" />';
     }
-}
-
-function tp_curl_fetch_object($url) {
-    $response = wp_remote_get($url, array('sslverify' => true));
-    if (is_wp_error($response)) {
-        return null;
-    }
-    $body = wp_remote_retrieve_body($response);
-    return json_decode($body);
-}
-
-function tp_get_list($options, $action = 'tag') {
-    $warning = '';
-    $status = 0;
-    $gen_options = get_option('tp_options');
-    if (!$gen_options['customfield'] && (empty($gen_options['content']) || empty($gen_options['excerpt']))) {
-        echo '<div class="notice notice-warning is-dismissible"><p><strong>' .
-             sprintf(
-                 /* translators: %s: link to settings page */
-                 esc_html__('You have to %scustomize the Content Template and/or Content Excerpt%s, otherwise your posts/pages will not show the imported videos.'),
-                 '<a href="' . esc_url(admin_url('admin.php?page=tubepress.php')) . '">',
-                 '</a>'
-             ) . '</strong></p></div>';
-        return false;
-    } elseif ($gen_options['customfield'] && empty($gen_options['content']) && empty($gen_options['excerpt'])) {
-        $warning .= '<p><strong>' . sprintf(
-            /* translators: %s: link to theme editor */
-            esc_html__('Do not forget to %sedit your template%s to make use of these custom fields instead of the default the_content() and the_excerpt() calls.'),
-            '<a href="' . esc_url(admin_url('theme-editor.php')) . '">',
-            '</a>'
-        ) . '</strong></p>';
-    }
-
-    if (!is_array($options)) {
-        return false;
-    }
-
-    $xml = null;
-    switch ($action) {
-        case 'id':
-            $xml = getYoutubeVideoInfo($options['video_id']);
-            break;
-    }
-
-    if (is_wp_error($xml)) {
-        if ($xml->get_error_code() === 'auth_required') {
-            tp_render_auth_screen();
-            return;
-        }
-        echo '<div class="notice notice-error"><p>' . esc_html($xml->get_error_message()) . '</p></div>';
-        return;
-    }
-
-    // Safety check: ensure we actually got an object back before trying to read it
-    if (!is_object($xml)) {
-        return;
-    }
-
-    echo '<div class="wrap">';
-    echo '<h2>' . esc_html__('Imported Video List') . '</h2>';
-
-    echo '<div align="center">';
-    if (isset($xml->items) && is_array($xml->items)) {
-        foreach ($xml->items as $video) {
-            if (!tp_duplicate($video->id)) {
-                $status = 1;
-                $thumb_url = !empty($video->snippet->thumbnails->high->url) ? $video->snippet->thumbnails->high->url : '';
-                $video_title = !empty($video->snippet->title) ? $video->snippet->title : '';
-                echo "<img src='" . esc_url($thumb_url) . "' alt='" . esc_attr($video_title) . "' width='120' height='90' /> ";
-                tp_write_post($video, $options);
-            }
-        }
-    } else {
-        $status = -1;
-    }
-
-    switch ($status) {
-        case -1:
-            echo '<div class="notice notice-warning"><p>' . esc_html__('No Videos Found') . wp_kses_post($warning) . '</p></div>';
-            break;  
-        case 0:
-            echo '<div class="notice notice-info"><p>' . esc_html__('Videos already imported') . wp_kses_post($warning) . '</p></div>';
-            break;
-        case 1:
-            echo '<div class="notice notice-success"><p>' . esc_html__('Videos imported successfully') . wp_kses_post($warning) . '</p></div>';
-            break;
-        default:
-            if (!empty($warning)) {
-                echo '<div class="notice notice-warning"><p>' . wp_kses_post($warning) . '</p></div>';
-            }
-            break;
-    }
-    echo '</div></div>';
+    return $img;
 }
 
 function tp_duplicate($id) {
@@ -399,42 +125,14 @@ function tp_duplicate($id) {
     return (bool) (!empty($post) || !empty($field));
 }
 
-function tp_player($id) {
-    $safe_id = sanitize_text_field($id);
-    return '<div class="video-container-outer"><div class="video-container"><iframe class="video-iframe" src="https://www.youtube.com/embed/' . esc_attr($safe_id) . '" frameborder="0" allowfullscreen></iframe></div></div>';
-}
-
-function tp_rating_c($r) {
-    $r = floatval($r);
-    $img = '';
-    $t = 0;
-    for ($i = 0; $i < floor($r); $i++) {
-        $img .= '<img src="' . esc_url(plugins_url('/images/yt_rating_on.gif', __FILE__)) . '" alt="*" />';
-    }
-    if ($r > floor($r)) {
-        $t = 1;
-        $img .= '<img src="' . esc_url(plugins_url('/images/yt_rating_half.gif', __FILE__)) . '" alt="½" />';
-    }
-    $remaining = 5 - floor($r) - $t;
-    for ($i = 0; $i < $remaining; $i++) {
-        $img .= '<img src="' . esc_url(plugins_url('/images/yt_rating_off.gif', __FILE__)) . '" alt="" />';
-    }
-    return $img;
-}
-
-function tp_write_post($v, $opt) {
+/**
+ * Creates a WordPress post from sanitized video metadata received from client-side fetch.
+ */
+function tp_write_post_from_metadata($vid, $title, $description, $thumbnail, $youtube_tags = array(), $cat_string = '') {
     $tpo = get_option('tp_options', array());
     $post_template_excerpt = isset($tpo['excerpt']) ? $tpo['excerpt'] : '';
     $post_template_content = isset($tpo['content']) ? $tpo['content'] : '';
     $post_status = !empty($tpo['status']) ? $tpo['status'] : 'publish';
-    $vid = (!empty($v->id)) ? $v->id : (isset($opt['video_id']) ? $opt['video_id'] : '');
-    $vid = sanitize_text_field($vid);
-
-    $youtube_tags = getYoutubeTags($vid);
-
-    $title = isset($v->snippet->title) ? $v->snippet->title : '';
-    $thumbnail = isset($v->snippet->thumbnails->high->url) ? $v->snippet->thumbnails->high->url : '';
-    $description = isset($v->snippet->description) ? $v->snippet->description : '';
 
     $tp_tags = array("%tp_player%", "%tp_id%", "%tp_title%", "%tp_thumbnail%", "%tp_description%", "%tp_url%");
     $tag_values = array(
@@ -450,8 +148,8 @@ function tp_write_post($v, $opt) {
     $post_template_content = str_replace($tp_tags, $tag_values, $post_template_content);
 
     $post_category = array();
-    if (!empty($opt['cat'])) {
-        $raw_cats = explode(',', trim($opt['cat'], " \n\t\r\0\x0B,"));
+    if (!empty($cat_string)) {
+        $raw_cats = explode(',', trim($cat_string, " \n\t\r\0\x0B,"));
         foreach ($raw_cats as $raw_cat) {
             $cleaned = sanitize_text_field(trim($raw_cat));
             if ($cleaned !== '') {
@@ -498,6 +196,61 @@ function tp_write_post($v, $opt) {
     return $post_id;
 }
 
+/**
+ * AJAX endpoint for client-side video import.
+ * Note: The Google OAuth token never touches this backend endpoint.
+ */
+function tp_ajax_client_import_video() {
+    check_ajax_referer('tp_client_import_action', 'security');
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(esc_html__('You do not have permission to perform this action.'), 403);
+    }
+
+    $video_id = isset($_POST['video_id']) ? sanitize_text_field(trim($_POST['video_id'])) : '';
+    if (empty($video_id) || !preg_match('/^[a-zA-Z0-9_-]{11}$/', $video_id)) {
+        wp_send_json_error(esc_html__('Invalid YouTube Video ID.'));
+    }
+
+    $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '';
+    if (empty($title)) {
+        wp_send_json_error(esc_html__('Video title cannot be empty.'));
+    }
+
+    $description = isset($_POST['description']) ? wp_kses_post(wp_unslash($_POST['description'])) : '';
+    $thumbnail   = isset($_POST['thumbnail']) ? esc_url_raw(wp_unslash($_POST['thumbnail'])) : '';
+    
+    $tags = array();
+    if (!empty($_POST['tags'])) {
+        $decoded = json_decode(wp_unslash($_POST['tags']), true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $tag) {
+                $tags[] = sanitize_text_field($tag);
+            }
+        }
+    }
+
+    $cat = isset($_POST['cat']) ? sanitize_text_field(wp_unslash($_POST['cat'])) : '';
+
+    if (tp_duplicate($video_id)) {
+        wp_send_json_error(esc_html__('This video has already been imported into WordPress.'));
+    }
+
+    $post_id = tp_write_post_from_metadata($video_id, $title, $description, $thumbnail, $tags, $cat);
+    if (!$post_id || is_wp_error($post_id)) {
+        $error_msg = is_wp_error($post_id) ? $post_id->get_error_message() : __('Failed to create WordPress post.');
+        wp_send_json_error(esc_html($error_msg));
+    }
+
+    wp_send_json_success(array(
+        'post_id'   => $post_id,
+        'title'     => $title,
+        'thumbnail' => $thumbnail,
+        'view_url'  => get_permalink($post_id),
+        'edit_url'  => get_edit_post_link($post_id, 'raw'),
+    ));
+}
+add_action('wp_ajax_tp_client_import_video', 'tp_ajax_client_import_video');
+
 function tp_category_form($options) {
     $tpo = get_option('tp_options', array());
     $post_type = isset($tpo['type']) ? $tpo['type'] : 'post';
@@ -529,56 +282,233 @@ function tp_comment_form($options) {
     return "";
 }
 
+function tp_copyright($style = null) {
+    return "";
+}
+
+/**
+ * Import By ID Screen.
+ * Uses client-side Google OAuth and directly fetches YouTube metadata in browser.
+ */
 function tp_import_id() {
     if (!current_user_can('manage_options')) {
         wp_die(esc_html__('You do not have sufficient permissions to access this page.'));
     }
 
+    $client_id = tp_get_client_id();
     $default = array('video_id' => 'ImtuJ-kzsAc', 'cat' => '');
     $options = get_option('tp_options_id', array());
     $options = is_array($options) ? array_merge($default, $options) : $default;
-
-    if (isset($_POST['update_tp'])) {
-        check_admin_referer('tp_import_id_action', 'tp_import_id_nonce');
-
-        $video_id = isset($_POST['video_id']) ? sanitize_text_field(trim($_POST['video_id'])) : '';
-        if (preg_match('%(?:youtube(?:-nocookie)?\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\.be/)([^"&?/ ]{11})%i', $video_id, $match)) {
-            $video_id = $match[1];
-        }
-
-        $options['video_id'] = $video_id;
-        $options['cat'] = isset($_POST['cat']) ? sanitize_text_field($_POST['cat']) : '';
-
-        update_option('tp_options_id', $options);
-        tp_get_list($options, 'id');
-    }
+    $nonce = wp_create_nonce('tp_client_import_action');
     ?>
 
     <div class="wrap">
         <h2><?php echo esc_html__('TubePress: Import By ID'); ?></h2>
         <?php echo tp_copyright(); ?>
-        <form name="id" method="post">
-            <?php wp_nonce_field('tp_import_id_action', 'tp_import_id_nonce'); ?>
-            <table class="form-table" style="max-width: 669px;">
-                <tr>
-                    <th scope="row"><label for="video_id"><?php echo esc_html__('Video ID or URL:'); ?></label></th>
-                    <td>
-                        <input name="video_id" type="text" id="video_id" class="regular-text" value="<?php echo esc_attr($options['video_id']); ?>" />
-                        <p class="description">e.g. <strong>ImtuJ-kzsAc</strong> or https://www.youtube.com/watch?v=ImtuJ-kzsAc</p>
-                    </td>
-                </tr>
-                <?php echo tp_category_form($options); ?>
-                <?php echo tp_comment_form($options); ?>
-            </table>
-            <p class="submit">
-                <input type="submit" name="update_tp" class="button button-primary" value="<?php echo esc_attr__('Import This Video &raquo;', 'update_tp'); ?>" style="font-weight:bold;" />
-            </p>
-        </form>
+
+        <?php if (empty($client_id)) : ?>
+            <div class="notice notice-warning" style="padding: 15px; margin-top: 15px;">
+                <h3><?php echo esc_html__('Google OAuth Client ID Required'); ?></h3>
+                <p><?php echo esc_html__('To import videos, you need to configure your Google OAuth 2.0 Client ID in the setup screen.'); ?></p>
+                <p>
+                    <a href="<?php echo esc_url(admin_url('admin.php?page=tubepress.php')); ?>" class="button button-primary">
+                        <?php echo esc_html__('Go to TubePress Setup to Configure Client ID'); ?>
+                    </a>
+                </p>
+            </div>
+        <?php else : ?>
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <script type="text/javascript">
+            var tpConfig = {
+                clientId: <?php echo json_encode($client_id); ?>,
+                ajaxUrl: <?php echo json_encode(admin_url('admin-ajax.php')); ?>,
+                nonce: <?php echo json_encode($nonce); ?>
+            };
+
+            var tpTokenClient = null;
+            var currentAccessToken = null;
+
+            function tpExtractVideoId(input) {
+                if (!input) return '';
+                input = input.trim();
+                var match = input.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/i);
+                if (match && match[1]) {
+                    return match[1];
+                }
+                if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+                    return input;
+                }
+                return '';
+            }
+
+            function tpGetClient() {
+                if (!tpTokenClient && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+                    tpTokenClient = google.accounts.oauth2.initTokenClient({
+                        client_id: tpConfig.clientId,
+                        scope: 'https://www.googleapis.com/auth/youtube.readonly',
+                        callback: function(tokenResponse) {
+                            if (tokenResponse.error) {
+                                tpShowStatus('Google authorization error: ' + tokenResponse.error, 'error');
+                                return;
+                            }
+                            currentAccessToken = tokenResponse.access_token;
+                            tpFetchAndImport();
+                        }
+                    });
+                }
+                return tpTokenClient;
+            }
+
+            function tpShowStatus(message, type) {
+                var container = document.getElementById('tp-import-status');
+                container.style.display = 'block';
+                var alertClass = 'notice-info';
+                if (type === 'error') alertClass = 'notice-error';
+                if (type === 'success') alertClass = 'notice-success';
+                container.className = 'notice ' + alertClass;
+                container.innerHTML = '<p>' + message + '</p>';
+            }
+
+            function tpStartImport() {
+                var videoInput = document.getElementById('video_id').value.trim();
+                var videoId = tpExtractVideoId(videoInput);
+                if (!videoId) {
+                    alert(<?php echo json_encode(__('Please enter a valid YouTube video ID or URL.')); ?>);
+                    return;
+                }
+
+                if (currentAccessToken) {
+                    tpFetchAndImport();
+                } else {
+                    var client = tpGetClient();
+                    if (client) {
+                        tpShowStatus(<?php echo json_encode(__('Requesting Google authorization...')); ?>, 'info');
+                        client.requestAccessToken();
+                    } else {
+                        alert(<?php echo json_encode(__('Google Identity library is still loading. Please wait a moment and try again.')); ?>);
+                    }
+                }
+            }
+
+            async function tpFetchAndImport() {
+                var videoInput = document.getElementById('video_id').value.trim();
+                var videoId = tpExtractVideoId(videoInput);
+                var catElement = document.getElementById('cat');
+                var category = catElement ? catElement.value.trim() : '';
+
+                tpShowStatus(<?php echo json_encode(__('Fetching video details directly from YouTube...')); ?>, 'info');
+
+                try {
+                    var ytUrl = 'https://www.googleapis.com/youtube/v3/videos?part=snippet&id=' + encodeURIComponent(videoId);
+                    var ytResponse = await fetch(ytUrl, {
+                        headers: {
+                            'Authorization': 'Bearer ' + currentAccessToken
+                        }
+                    });
+
+                    if (ytResponse.status === 401) {
+                        currentAccessToken = null;
+                        var client = tpGetClient();
+                        if (client) {
+                            tpShowStatus(<?php echo json_encode(__('Authorization expired. Requesting re-authorization...')); ?>, 'info');
+                            client.requestAccessToken();
+                        }
+                        return;
+                    }
+
+                    var ytData = await ytResponse.json();
+                    if (ytData.error) {
+                        tpShowStatus('YouTube API Error: ' + (ytData.error.message || JSON.stringify(ytData.error)), 'error');
+                        return;
+                    }
+
+                    if (!ytData.items || ytData.items.length === 0) {
+                        tpShowStatus(<?php echo json_encode(__('No video found on YouTube with this ID.')); ?>, 'error');
+                        return;
+                    }
+
+                    var videoItem = ytData.items[0];
+                    var snippet = videoItem.snippet || {};
+
+                    tpShowStatus(<?php echo json_encode(__('Video found! Creating WordPress post...')); ?>, 'info');
+
+                    var formData = new URLSearchParams();
+                    formData.append('action', 'tp_client_import_video');
+                    formData.append('security', tpConfig.nonce);
+                    formData.append('video_id', videoId);
+                    formData.append('title', snippet.title || '');
+                    formData.append('description', snippet.description || '');
+                    var thumbUrl = (snippet.thumbnails && snippet.thumbnails.high && snippet.thumbnails.high.url) ? 
+                                    snippet.thumbnails.high.url : 
+                                    ((snippet.thumbnails && snippet.thumbnails.default) ? snippet.thumbnails.default.url : '');
+                    formData.append('thumbnail', thumbUrl);
+                    formData.append('tags', JSON.stringify(snippet.tags || []));
+                    formData.append('cat', category);
+
+                    var wpResponse = await fetch(tpConfig.ajaxUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData
+                    });
+
+                    var wpData = await wpResponse.json();
+                    if (wpData.success) {
+                        var res = wpData.data;
+                        var successHtml = '<strong>' + <?php echo json_encode(__('Video imported successfully!')); ?> + '</strong><br/>';
+                        if (res.thumbnail) {
+                            successHtml += '<div style="margin-top: 10px;"><img src="' + encodeURI(res.thumbnail) + '" width="120" height="90" style="vertical-align: middle; margin-right: 15px; border-radius: 4px;" />';
+                        }
+                        successHtml += '<span style="font-size: 15px; font-weight: 600;">' + (' ' + res.title).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></div>';
+                        successHtml += '<div style="margin-top: 10px;">';
+                        if (res.view_url) {
+                            successHtml += '<a href="' + encodeURI(res.view_url) + '" target="_blank" class="button">' + <?php echo json_encode(__('View Post')); ?> + '</a> ';
+                        }
+                        if (res.edit_url) {
+                            successHtml += '<a href="' + encodeURI(res.edit_url) + '" target="_blank" class="button">' + <?php echo json_encode(__('Edit Post')); ?> + '</a>';
+                        }
+                        successHtml += '</div>';
+                        tpShowStatus(successHtml, 'success');
+                    } else {
+                        tpShowStatus(wpData.data || <?php echo json_encode(__('Failed to import video.')); ?>, 'error');
+                    }
+                } catch (err) {
+                    tpShowStatus(<?php echo json_encode(__('An error occurred during import: ')); ?> + err.message, 'error');
+                }
+            }
+
+            window.addEventListener('DOMContentLoaded', function() {
+                tpGetClient();
+            });
+            </script>
+
+            <div id="tp-import-status" class="notice" style="display:none; margin: 15px 0; padding: 12px;"></div>
+
+            <form id="tp-import-form" onsubmit="event.preventDefault(); tpStartImport();">
+                <table class="form-table" style="max-width: 669px;">
+                    <tr>
+                        <th scope="row"><label for="video_id"><?php echo esc_html__('Video ID or URL:'); ?></label></th>
+                        <td>
+                            <input name="video_id" type="text" id="video_id" class="regular-text" value="<?php echo esc_attr($options['video_id']); ?>" />
+                            <p class="description">e.g. <strong>ImtuJ-kzsAc</strong> or https://www.youtube.com/watch?v=ImtuJ-kzsAc</p>
+                        </td>
+                    </tr>
+                    <?php echo tp_category_form($options); ?>
+                    <?php echo tp_comment_form($options); ?>
+                </table>
+                <p class="submit">
+                    <button type="submit" id="tp-submit-btn" class="button button-primary" style="font-weight:bold;">
+                        <?php echo esc_html__('Import This Video &raquo;'); ?>
+                    </button>
+                </p>
+            </form>
+        <?php endif; ?>
     </div>
-    
     <?php
 }
 
+/**
+ * Setup and Options Screen.
+ */
 function tp_manage_options() {
     if (!current_user_can('manage_options')) {
         wp_die(esc_html__('You do not have sufficient permissions to access this page.'));
@@ -586,6 +516,7 @@ function tp_manage_options() {
 
     $warning = '';
     $default = array(
+        'client_id'   => '',
         'width'       => '425',
         'height'      => '344',
         'autoplay'    => '0',
@@ -606,6 +537,7 @@ function tp_manage_options() {
         check_admin_referer('tp_manage_options_action', 'tp_manage_options_nonce');
 
         $options = array();
+        $options['client_id']   = isset($_POST['client_id']) ? sanitize_text_field(trim($_POST['client_id'])) : '';
         $options['width']       = isset($_POST['width']) ? absint($_POST['width']) : 425;
         $options['height']      = isset($_POST['height']) ? absint($_POST['height']) : 344;
         $options['autoplay']    = !empty($_POST['autoplay']) ? 1 : 0;
@@ -675,15 +607,32 @@ function tp_manage_options() {
     } else {
         $opt = get_option('tp_options');
         $options = is_array($opt) ? array_merge($default, $opt) : $default;
-        if (isset($options['upgraded']) && $options['upgraded'] === '0') { 
-            $options['upgraded'] = '1';
-            update_option('tp_options', $options);
-            tp_upgrade();
+        if (empty($options['client_id']) && defined('TP_OAUTH2_CLIENT_ID') && TP_OAUTH2_CLIENT_ID !== 'FIXME') {
+            $options['client_id'] = TP_OAUTH2_CLIENT_ID;
         }
+    }
+
+    $site_origin = wp_parse_url(home_url(), PHP_URL_SCHEME) . '://' . wp_parse_url(home_url(), PHP_URL_HOST);
+    $port = wp_parse_url(home_url(), PHP_URL_PORT);
+    if ($port) {
+        $site_origin .= ':' . $port;
     }
     ?>
     <style type="text/css">
         .tp-color { padding: 5px 12px; text-align: center; }
+        .tp-guide-box {
+            background: #fff;
+            border: 1px solid #c3c4c7;
+            border-left: 4px solid #72aee6;
+            padding: 15px 20px;
+            margin: 20px 0;
+            max-width: 850px;
+            box-shadow: 0 1px 1px rgba(0,0,0,.04);
+        }
+        .tp-guide-box h3 { margin-top: 0; }
+        .tp-guide-box ol { margin-left: 20px; }
+        .tp-guide-box li { margin-bottom: 8px; }
+        .tp-guide-box code { background: #f0f0f1; padding: 2px 6px; border-radius: 3px; }
     </style>
     <script type="text/javascript">
         function tpPreview() {
@@ -709,9 +658,68 @@ function tp_manage_options() {
     </script>
     <div class="wrap">
         <h2><?php echo esc_html__('TubePress Setup'); ?></h2>
+        
+        <div class="tp-guide-box">
+            <h3><?php echo esc_html__('Google API Client-Side Authentication Setup'); ?></h3>
+            <p>
+                <?php echo esc_html__('TubePress uses modern Google Client-Side OAuth 2.0 to import YouTube videos directly from your browser. This means your Google access token and secrets are never stored on your WordPress server.'); ?>
+            </p>
+            <h4><?php echo esc_html__('How to get a Google OAuth 2.0 Client ID:'); ?></h4>
+            <ol>
+                <li>
+                    <?php echo sprintf(
+                        /* translators: %s: Google Cloud Console URL */
+                        esc_html__('Open the %sGoogle Cloud Console Credentials Page%s and create or select a project.'),
+                        '<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer"><strong>',
+                        '</strong> &raquo;</a>'
+                    ); ?>
+                </li>
+                <li>
+                    <?php echo sprintf(
+                        /* translators: %s: Google API Library URL */
+                        esc_html__('Enable the %sYouTube Data API v3%s for your project in the Google API Library.'),
+                        '<a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener noreferrer">',
+                        ' &raquo;</a>'
+                    ); ?>
+                </li>
+                <li>
+                    <?php echo esc_html__('Configure the OAuth Consent Screen (choose "External", enter an App Name such as "My TubePress Importer", and add your email).'); ?>
+                </li>
+                <li>
+                    <?php echo esc_html__('Click "+ CREATE CREDENTIALS" > "OAuth client ID". Choose "Web application" as the Application Type.'); ?>
+                </li>
+                <li>
+                    <?php echo sprintf(
+                        /* translators: %s: Site origin URL */
+                        esc_html__('Under "Authorized JavaScript origins", add this site\'s origin: %s'),
+                        '<code>' . esc_html($site_origin) . '</code>'
+                    ); ?>
+                    <br/>
+                    <small style="color: #666;"><?php echo esc_html__('(Note: Google does not require a redirect URI because authorization runs client-side via popup).'); ?></small>
+                </li>
+                <li>
+                    <?php echo esc_html__('Copy your Client ID (e.g. xxxxxxxx.apps.googleusercontent.com) and paste it into the field below.'); ?>
+                </li>
+            </ol>
+            <p>
+                <strong><?php echo esc_html__('Official Google Guides:'); ?></strong> 
+                <a href="https://developers.google.com/youtube/v3/guides/authentication" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('YouTube Data API Auth Guide'); ?></a> &bull;
+                <a href="https://developers.google.com/identity/gsi/web/guides/overview" target="_blank" rel="noopener noreferrer"><?php echo esc_html__('Google Identity Services (GSI) Guide'); ?></a>
+            </p>
+        </div>
+
         <form method="post">
         <?php wp_nonce_field('tp_manage_options_action', 'tp_manage_options_nonce'); ?>
-        <table class="form-table" style="max-width: 800px;">
+        <table class="form-table" style="max-width: 850px;">
+            <tr>
+                <th scope="row"><label for="client_id"><strong><?php echo esc_html__('Google OAuth Client ID:'); ?></strong></label></th>
+                <td colspan="2">
+                    <input name="client_id" type="text" id="client_id" class="large-text code" value="<?php echo esc_attr($options['client_id']); ?>" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" />
+                    <p class="description">
+                        <?php echo esc_html__('Obtained from the Google Cloud Console under APIs & Services > Credentials.'); ?>
+                    </p>
+                </td>
+            </tr>
             <tr>
                 <th scope="row"><label for="width"><?php echo esc_html__('Video Player Width'); ?></label></th>
                 <td><input name="width" type="text" id="width" class="small-text" value="<?php echo esc_attr($options['width']); ?>" /></td>
@@ -819,10 +827,6 @@ function tp_manage_options() {
         <?php echo tp_copyright('noformat'); ?>
     </div>
 <?php
-}
-
-function tp_copyright($style = null) {
-    return "";
 }
 
 function tp_insert_link($data) {
