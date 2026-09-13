@@ -34,6 +34,14 @@ hosting wordpress on.
 
 == Change Log ==
 
+= 4.2.1 =
+* Security hardening: Added CSRF protection using WordPress nonces on all admin forms.
+* Security hardening: Added explicit capability checks (manage_options) and replaced legacy numeric user levels.
+* Security hardening: Prevented SQL injection vulnerabilities using $wpdb->prepare().
+* Security hardening: Added output escaping (esc_attr, esc_html, esc_url, esc_textarea) to prevent XSS.
+* Enhanced OAuth token handling with secure transients and SameSite cookie attributes.
+* Lazy-loaded Google API client dependencies and added dependency check admin notice.
+
 = 4.2.0 =
 * Change to client-side auth to avoid storing secret on server
 * Rewrote this Wordpress plugin so that it uses OAUTH2 request from the
