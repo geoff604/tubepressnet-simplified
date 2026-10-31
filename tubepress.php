@@ -4,7 +4,7 @@ Plugin Name: TubePress.Net Simplified
 Plugin URI: http://www.tubepress.net/
 Description:  The Youtube Plugin for Wordpress, simplified to work with Youtube Data API (v3) using Client-Side Auth without backend tokens.
 Author: Mario Mansour and Geoff Peters
-Version: 4.3.0
+Version: 4.4.0
 Author URI: http://www.mariomansour.org/
 */
 
@@ -128,18 +128,19 @@ function tp_duplicate($id) {
 /**
  * Creates a WordPress post from sanitized video metadata received from client-side fetch.
  */
-function tp_write_post_from_metadata($vid, $title, $description, $thumbnail, $youtube_tags = array(), $cat_string = '') {
+function tp_write_post_from_metadata($vid, $title, $description, $thumbnail, $youtube_tags = array(), $cat_string = '', $thumbnail_best = '') {
     $tpo = get_option('tp_options', array());
     $post_template_excerpt = isset($tpo['excerpt']) ? $tpo['excerpt'] : '';
     $post_template_content = isset($tpo['content']) ? $tpo['content'] : '';
     $post_status = !empty($tpo['status']) ? $tpo['status'] : 'publish';
 
-    $tp_tags = array("%tp_player%", "%tp_id%", "%tp_title%", "%tp_thumbnail%", "%tp_description%", "%tp_url%");
+    $tp_tags = array("%tp_player%", "%tp_id%", "%tp_title%", "%tp_thumbnail%", "%tp_thumbnail_best%", "%tp_description%", "%tp_url%");
     $tag_values = array(
         tp_player($vid),
         $vid,
         $title,
         $thumbnail,
+        $thumbnail_best,
         $description,
         "https://www.youtube.com/watch?v=" . $vid
     );
@@ -216,8 +217,9 @@ function tp_ajax_client_import_video() {
         wp_send_json_error(esc_html__('Video title cannot be empty.'));
     }
 
-    $description = isset($_POST['description']) ? wp_kses_post(wp_unslash($_POST['description'])) : '';
-    $thumbnail   = isset($_POST['thumbnail']) ? esc_url_raw(wp_unslash($_POST['thumbnail'])) : '';
+    $description    = isset($_POST['description']) ? wp_kses_post(wp_unslash($_POST['description'])) : '';
+    $thumbnail      = isset($_POST['thumbnail']) ? esc_url_raw(wp_unslash($_POST['thumbnail'])) : '';
+    $thumbnail_best = isset($_POST['thumbnail_best']) ? esc_url_raw(wp_unslash($_POST['thumbnail_best'])) : '';
     
     $tags = array();
     if (!empty($_POST['tags'])) {
@@ -235,18 +237,19 @@ function tp_ajax_client_import_video() {
         wp_send_json_error(esc_html__('This video has already been imported into WordPress.'));
     }
 
-    $post_id = tp_write_post_from_metadata($video_id, $title, $description, $thumbnail, $tags, $cat);
+    $post_id = tp_write_post_from_metadata($video_id, $title, $description, $thumbnail, $tags, $cat, $thumbnail_best);
     if (!$post_id || is_wp_error($post_id)) {
         $error_msg = is_wp_error($post_id) ? $post_id->get_error_message() : __('Failed to create WordPress post.');
         wp_send_json_error(esc_html($error_msg));
     }
 
     wp_send_json_success(array(
-        'post_id'   => $post_id,
-        'title'     => $title,
-        'thumbnail' => $thumbnail,
-        'view_url'  => get_permalink($post_id),
-        'edit_url'  => get_edit_post_link($post_id, 'raw'),
+        'post_id'        => $post_id,
+        'title'          => $title,
+        'thumbnail'      => $thumbnail,
+        'thumbnail_best' => $thumbnail_best,
+        'view_url'       => get_permalink($post_id),
+        'edit_url'       => get_edit_post_link($post_id, 'raw'),
     ));
 }
 add_action('wp_ajax_tp_client_import_video', 'tp_ajax_client_import_video');
@@ -359,6 +362,15 @@ function tp_import_id() {
                 return tpTokenClient;
             }
 
+            function tpEscHtml(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
             function tpShowStatus(message, type) {
                 var container = document.getElementById('tp-import-status');
                 container.style.display = 'block';
@@ -366,7 +378,13 @@ function tp_import_id() {
                 if (type === 'error') alertClass = 'notice-error';
                 if (type === 'success') alertClass = 'notice-success';
                 container.className = 'notice ' + alertClass;
-                container.innerHTML = '<p>' + message + '</p>';
+                // 'success' messages contain trusted, pre-escaped HTML markup;
+                // error/info messages are plain text and must be escaped.
+                if (type === 'success') {
+                    container.innerHTML = '<p>' + message + '</p>';
+                } else {
+                    container.textContent = message;
+                }
             }
 
             function tpStartImport() {
@@ -438,10 +456,20 @@ function tp_import_id() {
                     formData.append('video_id', videoId);
                     formData.append('title', snippet.title || '');
                     formData.append('description', snippet.description || '');
+
                     var thumbUrl = (snippet.thumbnails && snippet.thumbnails.high && snippet.thumbnails.high.url) ? 
                                     snippet.thumbnails.high.url : 
                                     ((snippet.thumbnails && snippet.thumbnails.default) ? snippet.thumbnails.default.url : '');
+                    
+                    var t = snippet.thumbnails || {};
+                    var thumbUrlBest = (t.maxres && t.maxres.url) ? t.maxres.url :
+                                       ((t.standard && t.standard.url) ? t.standard.url :
+                                       ((t.high && t.high.url) ? t.high.url :
+                                       ((t.medium && t.medium.url) ? t.medium.url :
+                                       ((t.default && t.default.url) ? t.default.url : ''))));
+
                     formData.append('thumbnail', thumbUrl);
+                    formData.append('thumbnail_best', thumbUrlBest);
                     formData.append('tags', JSON.stringify(snippet.tags || []));
                     formData.append('cat', category);
 
@@ -458,7 +486,7 @@ function tp_import_id() {
                         if (res.thumbnail) {
                             successHtml += '<div style="margin-top: 10px;"><img src="' + encodeURI(res.thumbnail) + '" width="120" height="90" style="vertical-align: middle; margin-right: 15px; border-radius: 4px;" />';
                         }
-                        successHtml += '<span style="font-size: 15px; font-weight: 600;">' + (' ' + res.title).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></div>';
+                        successHtml += '<span style="font-size: 15px; font-weight: 600;"> ' + tpEscHtml(res.title) + '</span></div>';
                         successHtml += '<div style="margin-top: 10px;">';
                         if (res.view_url) {
                             successHtml += '<a href="' + encodeURI(res.view_url) + '" target="_blank" class="button">' + <?php echo json_encode(__('View Post')); ?> + '</a> ';
@@ -796,7 +824,7 @@ function tp_manage_options() {
                 <th scope="row"><?php echo esc_html__('Add Custom Fields'); ?></th>
                 <td colspan="2">
                     <label><input name="customfield" type="checkbox" id="customfield" value="1" <?php checked(!empty($options['customfield'])); ?> /> <?php echo esc_html__('Enable custom fields'); ?></label>
-                    <p class="description"><?php echo esc_html__('Custom Fields: tp_player, tp_thumbnail, tp_title, tp_description, tp_duration, tp_author, tp_tags, tp_rating_num, tp_rating_img, tp_viewcount, tp_id, tp_url'); ?></p>
+                    <p class="description"><?php echo esc_html__('Custom Fields: tp_player, tp_thumbnail, tp_thumbnail_best, tp_title, tp_description, tp_duration, tp_author, tp_tags, tp_rating_num, tp_rating_img, tp_viewcount, tp_id, tp_url'); ?></p>
                 </td>
             </tr>
             <tr>
@@ -815,6 +843,7 @@ function tp_manage_options() {
         <ul>
             <li><strong>%tp_player%</strong>: <?php echo esc_html__('Displays the video player'); ?></li>
             <li><strong>%tp_thumbnail%</strong>: <?php echo esc_html__('Displays the thumbnail image'); ?></li>
+            <li><strong>%tp_thumbnail_best%</strong>: <?php echo esc_html__('Displays the highest resolution thumbnail image'); ?></li>
             <li><strong>%tp_title%</strong>: <?php echo esc_html__('Displays the title of the video'); ?></li>
             <li><strong>%tp_description%</strong>: <?php echo esc_html__('Displays the description of the video'); ?></li>
             <li><strong>%tp_id%</strong>: <?php echo esc_html__('Displays the video id'); ?></li>
@@ -859,7 +888,13 @@ function tp_patch() {
 
 function tp_upgrade() {
     global $wpdb;
-    $posts = $wpdb->get_results("SELECT ID, post_content FROM {$wpdb->posts} WHERE post_content LIKE '%[/ID]%'", ARRAY_A);
+    $posts = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT ID, post_content FROM {$wpdb->posts} WHERE post_content LIKE %s",
+            '%[/ID]%'
+        ),
+        ARRAY_A
+    );
     if (!is_array($posts)) {
         return false;
     }

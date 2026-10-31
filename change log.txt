@@ -1,4 +1,16 @@
-== Change Log file ==
+﻿== Change Log file ==
+
+Changes in 4.4.0
+
+* Added %tp_thumbnail_best% template tag that resolves the highest
+  available thumbnail resolution (maxres > standard > high > medium
+  > default) using client-side resolution cascade.
+* Added thumbnail_best custom field (tp_thumbnail_best) populated on
+  import alongside the existing tp_thumbnail field.
+* Updated AJAX import endpoint and post-creation function to accept,
+  sanitize, and store the new thumbnail_best URL.
+* Updated Setup screen custom fields list and template tag reference
+  to document %tp_thumbnail_best%.
 
 Changes in 4.3.0
 

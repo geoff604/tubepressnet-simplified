@@ -3,7 +3,7 @@
 [![WordPress](https://img.shields.io/badge/WordPress-5.0%20to%207.1%20Tested-blue.svg)](https://wordpress.org/)
 [![PHP](https://img.shields.io/badge/PHP-7.4%20to%208.5+-purple.svg)](https://php.net/)
 [![License: GPL-2.0](https://img.shields.io/badge/License-GPLv2-green.svg)](gpl.txt)
-[![Version](https://img.shields.io/badge/version-4.3.0-orange.svg)](change%20log.txt)
+[![Version](https://img.shields.io/badge/version-4.4.0-orange.svg)](change%20log.txt)
 
 **TubePress.Net Simplified** is a streamlined, security-hardened WordPress plugin that imports YouTube videos directly into your WordPress posts or pages using the **YouTube Data API (v3)**.
 
@@ -35,7 +35,7 @@ Designed with a modern **Zero-Backend-Token architecture**, all Google OAuth 2.0
 * **Zero-Backend-Token Security**: OAuth 2.0 bearer tokens are held exclusively in browser memory during your active session. Your WordPress database, cookies, and server logs never store Google tokens.
 * **100% Self-Contained**: No server-side Composer, `vendor/autoload.php`, or heavy Google PHP SDK required. Completely immune to missing PHP dependency crashes.
 * **Fast & Interactive AJAX Importer**: Paste a YouTube video ID or full URL (`https://youtu.be/...` or `https://www.youtube.com/watch?v=...`) to import with live status feedback, thumbnail previews, and instant view/edit post links.
-* **Customizable Post & Excerpt Templates**: Tailor exactly how imported posts are formatted using intuitive template tags (`%tp_player%`, `%tp_title%`, `%tp_thumbnail%`, `%tp_description%`, `%tp_url%`, `%tp_id%`).
+* **Customizable Post & Excerpt Templates**: Tailor exactly how imported posts are formatted using intuitive template tags (`%tp_player%`, `%tp_title%`, `%tp_thumbnail%`, `%tp_thumbnail_best%`, `%tp_description%`, `%tp_url%`, `%tp_id%`).
 * **Custom Field & Taxonomy Integration**: Automatically assigns YouTube tags to WordPress tags, maps comma-separated categories, and populates WordPress post meta custom fields.
 * **Duplicate Prevention**: Built-in duplicate detection checks existing post content, excerpts, and post meta before importing to avoid duplicate entries.
 * **Security Hardened**: Full CSRF protection via WordPress nonces, strict capability checks (`manage_options`), SQL injection defense using `$wpdb->prepare()`, and contextual output escaping (`esc_html`, `esc_attr`, `esc_url`, `esc_textarea`).
@@ -126,11 +126,12 @@ Under **TubePress > Setup**, you can customize default settings:
 * **Post Status**: Choose between `Published`, `Draft`, `Pending`, or `Private`.
 * **Post Type**: Choose between `post` or `page`.
 * **Remove Duplication**: When checked, prevents importing videos that already exist in your posts or custom fields.
-* **Custom Fields**: Automatically populate custom fields (`tp_player`, `tp_thumbnail`, `tp_title`, `tp_description`, `tp_duration`, `tp_author`, `tp_tags`, `tp_id`, `tp_url`) for advanced theme templating.
+* **Custom Fields**: Automatically populate custom fields (`tp_player`, `tp_thumbnail`, `tp_thumbnail_best`, `tp_title`, `tp_description`, `tp_duration`, `tp_author`, `tp_tags`, `tp_id`, `tp_url`) for advanced theme templating.
 * **Content & Excerpt Templates**: Use any combination of HTML and the following tags:
   * `%tp_player%` - The responsive embedded video player
   * `%tp_title%` - The video title
-  * `%tp_thumbnail%` - High-resolution thumbnail image URL
+  * `%tp_thumbnail%` - High-resolution thumbnail image URL (high quality)
+  * `%tp_thumbnail_best%` - Highest available resolution thumbnail URL
   * `%tp_description%` - Full video description
   * `%tp_url%` - Direct YouTube video URL
   * `%tp_id%` - 11-character YouTube video ID
@@ -214,6 +215,7 @@ php path/to/test_tubepress.php
 
 See [change log.txt](change%20log.txt) and [ReadMe.txt](ReadMe.txt) for full version history.
 
+* **4.4.0**: Added `%tp_thumbnail_best%` template tag and `tp_thumbnail_best` custom field. Selects the highest available YouTube thumbnail resolution (maxres > standard > high > medium > default) via client-side cascade and passes it through the AJAX import pipeline.
 * **4.3.0**: Implemented Zero-Backend-Token architecture. YouTube metadata is fetched directly in browser via client-side OAuth 2.0 (Google Identity Services). Removed server Composer/Google SDK dependencies. Added in-app setup guide with dynamic origin detection and interactive AJAX importer. Removed obsolete `JSON.php` and `locale/` files.
 * **4.2.1**: Security hardening release: CSRF nonces, `$wpdb->prepare()` SQL injection defense, output escaping, and authorization capability checks.
 * **4.2.0**: Initial migration toward client-side Google authentication.

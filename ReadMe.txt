@@ -1,4 +1,4 @@
-=== TubePress.NET ===
+﻿=== TubePress.NET ===
 Contributors: Mario Mansour and Geoff Peters
 Donate link: http://www.tubepress.net/
 Tags: wordpress video plugin, youtube, video, import youtube videos, wordpress plugins, wordpress youtube, youtube wordpress
@@ -31,6 +31,16 @@ Import Youtube Videos directly into your wordpress blog post or pages.
 
 
 == Change Log ==
+
+= 4.4.0 =
+* Feature: Added %tp_thumbnail_best% template tag that selects the
+  highest available YouTube thumbnail resolution (maxres > standard
+  > high > medium > default) using client-side resolution cascade.
+* Feature: Added tp_thumbnail_best custom field populated on import.
+* Updated AJAX import endpoint and post-creation function to accept
+  and sanitize the new thumbnail_best URL field.
+* Docs: Updated Setup screen custom field list and template tag
+  reference to include %tp_thumbnail_best%.
 
 = 4.3.0 =
 * Architecture: Implemented Zero-Backend-Token architecture. YouTube video metadata is now fetched directly in the browser via client-side OAuth 2.0, completely eliminating the need for Google tokens on the backend.
